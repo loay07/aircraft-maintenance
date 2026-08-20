@@ -14,6 +14,11 @@ let scatterChart = null;
 let trendChart = null;
 let sensorChart = null;
 
+// Predictions for all 100 official NASA test engines, precomputed once by
+// scripts/export_static_data.py from the real xgboost_capped.json model --
+// static files so the site needs no backend (works on GitHub Pages).
+let trendsData = null;
+
 function setMetricText(selector, value) {
   document.querySelectorAll(`[data-metric="${selector}"]`).forEach((el) => {
     el.textContent = value;
@@ -21,7 +26,7 @@ function setMetricText(selector, value) {
 }
 
 async function loadMetrics() {
-  const res = await fetch("/api/metrics");
+  const res = await fetch("data/metrics.json");
   const data = await res.json();
 
   setMetricText("mae", data.mae.toFixed(2));
@@ -66,8 +71,12 @@ async function loadMetrics() {
 }
 
 async function loadEngineList() {
-  const res = await fetch("/api/engines");
-  const engines = await res.json();
+  const [engines, trends] = await Promise.all([
+    fetch("data/engines.json").then((r) => r.json()),
+    fetch("data/trends.json").then((r) => r.json()),
+  ]);
+  trendsData = trends;
+  window.__engineSummaries = engines;
 
   const select = document.getElementById("engine-select");
   select.innerHTML = engines
@@ -84,16 +93,9 @@ function statusFor(rul) {
   return { label: "Maintenance Needed", cls: "badge-danger" };
 }
 
-async function loadEngine(engineId) {
-  const statusEl = document.getElementById("demo-status");
-  statusEl.textContent = "Running model...";
-
-  const [summaryRes, trendRes] = await Promise.all([
-    fetch("/api/engines").then((r) => r.json()),
-    fetch(`/api/engines/${engineId}/trend`).then((r) => r.json()),
-  ]);
-
-  const summary = summaryRes.find((e) => e.engine_id === Number(engineId));
+function loadEngine(engineId) {
+  const summary = window.__engineSummaries.find((e) => e.engine_id === Number(engineId));
+  const trendRes = trendsData[String(engineId)];
 
   document.getElementById("stat-predicted").textContent = summary.predicted_rul_last_cycle.toFixed(1);
   document.getElementById("stat-actual").textContent = summary.true_rul_capped.toFixed(1);
@@ -106,8 +108,6 @@ async function loadEngine(engineId) {
 
   renderTrendChart(trendRes);
   renderSensorChart(trendRes);
-
-  statusEl.textContent = "";
 }
 
 function renderTrendChart(trend) {

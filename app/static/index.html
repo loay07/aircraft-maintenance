@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
 
@@ -167,8 +167,9 @@
     <div class="section-inner">
       <h2 class="section-title">Live demo</h2>
       <p class="section-lead">
-        Pick one of NASA's 100 official test engines. The model runs on that engine's real
-        sensor history &mdash; nothing here is faked or precomputed by hand.
+        Pick one of NASA's 100 official test engines. Every number below came from running the
+        real XGBoost model against that engine's actual sensor history &mdash; nothing here is
+        faked or hand-tuned, just precomputed once so the demo needs no backend server.
       </p>
 
       <div class="demo-controls">
@@ -225,6 +226,6 @@
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-<script src="/app.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
