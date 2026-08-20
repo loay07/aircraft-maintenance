@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aircraft Engine RUL Predictor</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="nav-inner">
+    <a href="#top" class="brand">
+      <span class="brand-mark">&#9992;</span> RUL<span class="accent">Predict</span>
+    </a>
+    <div class="nav-links">
+      <a href="#overview">Overview</a>
+      <a href="#methodology">Methodology</a>
+      <a href="#results">Results</a>
+      <a href="#demo" class="nav-cta">Live Demo</a>
+    </div>
+  </div>
+</nav>
+
+<header id="top" class="hero">
+  <div class="hero-inner">
+    <p class="eyebrow">Predictive Maintenance &middot; Turbofan Engines</p>
+    <h1>How many flight cycles does this engine have left?</h1>
+    <p class="hero-sub">
+      An XGBoost regression model trained on NASA's C-MAPSS FD001 dataset that predicts
+      <strong>Remaining Useful Life (RUL)</strong> from multivariate sensor telemetry &mdash;
+      degradation trends, not just a snapshot.
+    </p>
+    <div class="hero-actions">
+      <a href="#demo" class="btn btn-primary">Try the live demo</a>
+      <a href="#methodology" class="btn btn-ghost">How it works</a>
+    </div>
+    <div class="hero-stats" id="hero-stats">
+      <div class="hero-stat"><span class="hero-stat-value" data-metric="mae">&ndash;</span><span class="hero-stat-label">MAE (cycles)</span></div>
+      <div class="hero-stat"><span class="hero-stat-value" data-metric="rmse">&ndash;</span><span class="hero-stat-label">RMSE (cycles)</span></div>
+      <div class="hero-stat"><span class="hero-stat-value" data-metric="r2">&ndash;</span><span class="hero-stat-label">R&sup2; score</span></div>
+      <div class="hero-stat"><span class="hero-stat-value">100</span><span class="hero-stat-label">test engines</span></div>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <section id="overview" class="section">
+    <div class="section-inner">
+      <h2 class="section-title">The problem</h2>
+      <p class="section-lead">
+        Turbofan engines degrade gradually over hundreds of flight cycles before failing.
+        Waiting for a fault to appear means unplanned downtime; servicing on a fixed schedule
+        wastes healthy engine life. Predictive maintenance estimates <strong>how many cycles
+        remain</strong> before failure, directly from sensor readings, so maintenance can be
+        scheduled exactly when it's needed.
+      </p>
+      <div class="card-grid">
+        <div class="info-card">
+          <h3>Dataset</h3>
+          <p>NASA C-MAPSS <strong>FD001</strong> &mdash; simulated turbofan run-to-failure trajectories.</p>
+          <ul>
+            <li>100 engines to train, 100 held-out engines to test</li>
+            <li>One operating condition (sea level)</li>
+            <li>One fault mode (HPC degradation)</li>
+            <li>21 sensors + 3 operational settings per cycle</li>
+          </ul>
+        </div>
+        <div class="info-card">
+          <h3>Task</h3>
+          <p>Each training engine runs from healthy to failure. Each test engine's series is
+          cut short before failure &mdash; the model must predict cycles remaining using only
+          the data observed so far, and is scored against NASA's official true RUL labels.</p>
+        </div>
+        <div class="info-card">
+          <h3>Model</h3>
+          <p><strong>XGBoost</strong> gradient-boosted trees, trained on 58 engineered features
+          per cycle, selected after comparing against linear regression, decision trees, and
+          random forests during experimentation.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="methodology" class="section section-alt">
+    <div class="section-inner">
+      <h2 class="section-title">How the prediction is built</h2>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <h3>Sensor selection</h3>
+            <p>13 of the 21 raw sensors were kept &mdash; the rest were flat or near-constant
+            across the fleet and carried no degradation signal.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <h3>Rolling window features</h3>
+            <p>For each selected sensor: a 5-cycle and 10-cycle rolling mean (smoothed level),
+            a 10-cycle rolling linear-fit slope (trend direction and speed), and for 5 key
+            sensors a 10-cycle rolling standard deviation (volatility as engines wear). 58
+            features total per cycle.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <h3>RUL capping at 125 cycles</h3>
+            <p>Early in life, engines are stable and RUL is only weakly related to sensor
+            readings &mdash; a model that tries to distinguish "300 cycles left" from "280"
+            just chases noise. Capping the training label at 125 cycles concentrates learning
+            capacity on the degradation region, where sensors actually carry signal.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <h3>Training &amp; evaluation</h3>
+            <p>XGBoost was validated on a held-out split of engines, then evaluated once
+            against NASA's official FD001 test set and true-RUL labels &mdash; the numbers
+            below are that official, held-out result.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="results" class="section">
+    <div class="section-inner">
+      <h2 class="section-title">Official test set performance</h2>
+      <p class="section-lead">Scored once against NASA's 100 official FD001 test engines and their true RUL labels (capped at 125 cycles).</p>
+
+      <div class="metric-cards" id="metric-cards">
+        <div class="metric-card">
+          <span class="metric-value" data-metric="mae">&ndash;</span>
+          <span class="metric-label">Mean Absolute Error</span>
+          <span class="metric-sub">cycles</span>
+        </div>
+        <div class="metric-card">
+          <span class="metric-value" data-metric="rmse">&ndash;</span>
+          <span class="metric-label">Root Mean Squared Error</span>
+          <span class="metric-sub">cycles</span>
+        </div>
+        <div class="metric-card">
+          <span class="metric-value" data-metric="r2">&ndash;</span>
+          <span class="metric-label">R&sup2; Score</span>
+          <span class="metric-sub">variance explained</span>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <h3>Predicted vs. actual RUL &mdash; all 100 test engines</h3>
+        <p class="chart-note">Points on the dashed diagonal are perfect predictions.</p>
+        <div class="chart-wrap"><canvas id="scatter-chart"></canvas></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="demo" class="section section-alt">
+    <div class="section-inner">
+      <h2 class="section-title">Live demo</h2>
+      <p class="section-lead">
+        Pick one of NASA's 100 official test engines. The model runs on that engine's real
+        sensor history &mdash; nothing here is faked or precomputed by hand.
+      </p>
+
+      <div class="demo-controls">
+        <label for="engine-select">Test engine</label>
+        <select id="engine-select"></select>
+        <span id="demo-status" class="demo-status"></span>
+      </div>
+
+      <div class="demo-grid">
+        <div class="stat-card">
+          <span class="stat-label">Predicted RUL (last observed cycle)</span>
+          <span class="stat-value" id="stat-predicted">&ndash;</span>
+          <span class="stat-unit">cycles</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">NASA true RUL (capped)</span>
+          <span class="stat-value" id="stat-actual">&ndash;</span>
+          <span class="stat-unit">cycles</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Status</span>
+          <span class="stat-badge" id="stat-badge">&ndash;</span>
+          <span class="stat-unit" id="stat-cycle-info">&nbsp;</span>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <h3>Predicted RUL trajectory</h3>
+        <p class="chart-note">Predicted remaining life at every observed cycle, vs. the true remaining-life reference line.</p>
+        <div class="chart-wrap"><canvas id="trend-chart"></canvas></div>
+      </div>
+
+      <div class="chart-card">
+        <h3>Raw sensor trends</h3>
+        <p class="chart-note">Sensors 11, 4 and 9 &mdash; the clearest degradation signals for this engine.</p>
+        <div class="chart-wrap"><canvas id="sensor-chart"></canvas></div>
+      </div>
+
+      <p class="disclaimer">
+        Illustrative status thresholds only (RUL &gt; 60 &ldquo;Healthy&rdquo;, 30&ndash;60
+        &ldquo;Monitor&rdquo;, &lt; 30 &ldquo;Maintenance Needed&rdquo;) &mdash; a portfolio ML
+        project, not a certified flight-safety tool.
+      </p>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <div class="footer-inner">
+    <p>Built on NASA's C-MAPSS FD001 dataset (Saxena, Goebel, Simon &amp; Eklund, PHM08).
+    Model: XGBoost regression, 58 engineered features, RUL capped at 125 cycles.</p>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>
